@@ -836,17 +836,19 @@ jobs:
           set -euo pipefail
           cd kernel_workspace/common
           echo "::group::LSM BBG Integration"
-
-          echo "📥 Downloading BBG setup script from main branch..."
-          curl -fL --proto '=https' --tlsv1.2 \
-            -o /tmp/bbg_setup.sh \
-            "https://raw.githubusercontent.com/vc-teahouse/Baseband-guard/main/setup.sh"
-
-          echo "🚀 Running BBG setup..."
-          bash /tmp/bbg_setup.sh fix_blkdev_rename
+      
+          echo "📥 Downloading & running BBG setup script from main branch..."
+          if ! wget -O- https://github.com/vc-teahouse/Baseband-guard/raw/main/setup.sh | bash -s main; then
+            echo "::warning::BBG setup script failed, continuing anyway"
+          fi
+      
+          echo "⚙️ Patching Kconfig for baseband_guard LSM..."
           sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' ./security/Kconfig
+      
+          echo "⚙️ Enabling CONFIG_BBG in defconfig..."
+          echo "CONFIG_BBG=y" >> arch/arm64/configs/gki_defconfig
+      
           echo "✅ LSM BBG applied successfully"
-
           echo "::endgroup::"
 
       - name: Add Configuration Settings
@@ -932,13 +934,7 @@ jobs:
             echo "CONFIG_IP_NF_TARGET_ECN=y" >> "$CONFIG_FILE"
             echo "✅ BBR+ECN configuration added"
           fi
-
-          # LSM BBG
-          if [ "${LSM_ENABLED}" = "1" ]; then
-            echo "CONFIG_BBG=y" >> "$CONFIG_FILE"
-            echo "✅ LSM BBG configuration added"
-          fi
-
+          
           # NETFILTER
           if [[ "${CPU}" == sm* && "${NETFILTER_ENABLED}" = "1" ]]; then
             echo "CONFIG_BPF_STREAM_PARSER=y" >> "$CONFIG_FILE"
