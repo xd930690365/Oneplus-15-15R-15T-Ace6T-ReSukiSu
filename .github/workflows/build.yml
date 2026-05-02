@@ -1,4 +1,4 @@
-name: OnePlus 15 / 15r / Ace6t ReSukiSU
+name: OnePlus 15 / 15T / 15R / Ace6T ReSukiSU
 
 on:
   workflow_dispatch:
@@ -10,6 +10,7 @@ on:
         default: oneplus15
         options:
           - oneplus15      # OnePlus 15 (sm8850)
+          - oneplus15t     # OnePlus 15T (sm8850)
           - oneplus15r     # OnePlus 15R (sm8845)
           - ace6t          # OnePlus Ace 6T (sm8845)
 
@@ -26,7 +27,7 @@ on:
         type: choice
         description: "Kernel module implementation method"
         required: true
-        default: KPM
+        default: NoN
         options:
           - KPM
           - KPN
@@ -66,7 +67,7 @@ on:
         type: boolean
         description: "Enable critical partition write-protection module (BBG)?"
         required: true
-        default: true
+        default: false
 
       NETFILTER:
         type: boolean
@@ -120,10 +121,10 @@ concurrency:
 jobs:
   build:
     name: >-
-      ${{ inputs.DEVICE == 'oneplus15' && 'OnePlus 15' || inputs.DEVICE == 'oneplus15r' && 'OnePlus 15R' || 'Ace 6T' }} 
+      ${{ inputs.DEVICE == 'oneplus15' && 'OnePlus 15' || inputs.DEVICE == 'oneplus15t' && 'OnePlus 15T' || inputs.DEVICE == 'oneplus15r' && 'OnePlus 15R' || inputs.DEVICE == 'ace6t' && 'Ace 6T' || inputs.DEVICE }}
       ${{ inputs.KPM == 'KPM' && '[KPM] ' || inputs.KPM == 'KPN' && '[KPN] ' || '' }}${{ inputs.LSM && '[LSM]' || '' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 90
 
     env:
       CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
@@ -160,6 +161,17 @@ jobs:
               echo "✅ Device: OnePlus 15 (sm8850)"
               echo "✅ Kernel: android16-6.12-2025-06"
               ;;
+
+            oneplus15t)
+              echo "DEVICE_NAME=OnePlus 15T" >> "$GITHUB_OUTPUT"
+              echo "DEVICE_CODENAME=pineapple" >> "$GITHUB_OUTPUT"
+              echo "CPU=sm8850" >> "$GITHUB_OUTPUT"
+              echo "KERNEL_BRANCH=android16-6.12-2025-06" >> "$GITHUB_OUTPUT"
+              echo "DEVICE_NAME_SAFE=OnePlus15T" >> "$GITHUB_OUTPUT"
+              echo "✅ Device: OnePlus 15T (sm8850)"
+              echo "✅ Kernel: android16-6.12-2025-06"
+              ;;
+
             oneplus15r)
               echo "DEVICE_NAME=OnePlus 15R" >> "$GITHUB_OUTPUT"
               echo "DEVICE_CODENAME=aston" >> "$GITHUB_OUTPUT"
@@ -169,6 +181,7 @@ jobs:
               echo "✅ Device: OnePlus 15R (sm8845)"
               echo "✅ Kernel: android16-6.12-2025-09"
               ;;
+
             ace6t)
               echo "DEVICE_NAME=OnePlus Ace 6T" >> "$GITHUB_OUTPUT"
               echo "DEVICE_CODENAME=pineapple" >> "$GITHUB_OUTPUT"
@@ -178,6 +191,7 @@ jobs:
               echo "✅ Device: OnePlus Ace 6T (sm8845)"
               echo "✅ Kernel: android16-6.12-2025-09"
               ;;
+
             *)
               echo "❌ ERROR: Unknown device: ${{ inputs.DEVICE }}"
               exit 1
