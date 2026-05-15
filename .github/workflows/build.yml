@@ -23,6 +23,15 @@ on:
           - MD3
           - MD3_SPOOF
 
+      KSU_SETUP_BRANCH:
+        type: choice
+        description: "ReSukiSU setup.sh branch"
+        required: true
+        default: dev
+        options:
+          - main
+          - dev
+
       KPM:
         type: choice
         description: "Kernel module implementation method"
@@ -49,7 +58,7 @@ on:
         type: string
         description: "Branch name / custom version tag / rollback commit hash"
         required: false
-        default: "main/⚡Ultra⚡/"
+        default: "dev/⚡Ultra⚡/"
 
       SUFFIX:
         type: string
@@ -165,7 +174,6 @@ jobs:
               echo "KERNEL_BRANCH=android16-6.12-2025-06" >> "$GITHUB_OUTPUT"
               echo "DEVICE_NAME_SAFE=OnePlus15" >> "$GITHUB_OUTPUT"
               ;;
-
             oneplus15t)
               echo "DEVICE_NAME=OnePlus 15T" >> "$GITHUB_OUTPUT"
               echo "DEVICE_CODENAME=pineapple" >> "$GITHUB_OUTPUT"
@@ -173,7 +181,6 @@ jobs:
               echo "KERNEL_BRANCH=android16-6.12-2025-06" >> "$GITHUB_OUTPUT"
               echo "DEVICE_NAME_SAFE=OnePlus15T" >> "$GITHUB_OUTPUT"
               ;;
-
             oneplus15r)
               echo "DEVICE_NAME=OnePlus 15R" >> "$GITHUB_OUTPUT"
               echo "DEVICE_CODENAME=aston" >> "$GITHUB_OUTPUT"
@@ -181,7 +188,6 @@ jobs:
               echo "KERNEL_BRANCH=android16-6.12-2025-09" >> "$GITHUB_OUTPUT"
               echo "DEVICE_NAME_SAFE=OnePlus15R" >> "$GITHUB_OUTPUT"
               ;;
-
             ace6t)
               echo "DEVICE_NAME=OnePlus Ace 6T" >> "$GITHUB_OUTPUT"
               echo "DEVICE_CODENAME=pineapple" >> "$GITHUB_OUTPUT"
@@ -189,7 +195,6 @@ jobs:
               echo "KERNEL_BRANCH=android16-6.12-2025-09" >> "$GITHUB_OUTPUT"
               echo "DEVICE_NAME_SAFE=Ace6T" >> "$GITHUB_OUTPUT"
               ;;
-
             *)
               echo "❌ ERROR: Unknown device: ${{ inputs.DEVICE }}"
               exit 1
@@ -300,11 +305,19 @@ jobs:
           echo "💻 SoC: ${{ steps.device_config.outputs.CPU }}"
           echo "🌿 Kernel Branch: ${{ steps.device_config.outputs.KERNEL_BRANCH }}"
           echo "👤 Manager Source: ${{ inputs.MANAGER_SOURCE }}"
+          echo "🛠️ KSU setup.sh branch: ${{ inputs.KSU_SETUP_BRANCH }}"
+          echo "🎯 KSU Meta: ${{ inputs.KSU_META }}"
           echo "🔌 KPM Mode: ${{ inputs.KPM }}"
           echo "🔐 SUSFS Meta: ${{ inputs.SUSFS_META }}"
-          echo "🎯 KSU Meta: ${{ inputs.KSU_META }}"
           echo "⏰ Build Time: ${{ inputs.BUILD_TIME }}"
           echo "🏷️ Suffix: ${{ inputs.SUFFIX }}"
+          echo "📊 Sublevel: ${{ inputs.SUBLEVEL }}"
+          echo "🛡️ LSM: ${{ inputs.LSM }}"
+          echo "🌐 NETFILTER: ${{ inputs.NETFILTER }}"
+          echo "🚀 BBR+ECN: ${{ inputs.BBR_ECN }}"
+          echo "🔤 Unicode Bypass: ${{ inputs.UNICODE_BYPASS }}"
+          echo "🔧 XUS Fix: ${{ inputs.XUS_FIX }}"
+          echo "🧪 SUSFS Dev: ${{ inputs.SUSFS_DEV }}"
           echo "🗄️ Build NoCcache: ${{ inputs.BUILD_NOCCACHE }}"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -435,8 +448,10 @@ jobs:
             echo "KANDROID_VERSION=${KANDROID_VERSION}" >> "$GITHUB_ENV"
             echo "KERNEL_VERSION=${KERNEL_VERSION}" >> "$GITHUB_ENV"
           else
-            echo "KANDROID_VERSION=android16" >> "$GITHUB_ENV"
-            echo "KERNEL_VERSION=6.12" >> "$GITHUB_ENV"
+            KANDROID_VERSION="android16"
+            KERNEL_VERSION="6.12"
+            echo "KANDROID_VERSION=${KANDROID_VERSION}" >> "$GITHUB_ENV"
+            echo "KERNEL_VERSION=${KERNEL_VERSION}" >> "$GITHUB_ENV"
           fi
 
           SUBLEVEL_INPUT="${{ inputs.SUBLEVEL }}"
@@ -446,7 +461,13 @@ jobs:
 
           NEW_VERSION="$(awk '/^VERSION =/ {v=$3} /^PATCHLEVEL =/ {p=$3} /^SUBLEVEL =/ {s=$3} END {print v"."p"."s}' ./common/Makefile)"
           echo "TKERNEL_VERSION=$NEW_VERSION" >> "$GITHUB_ENV"
+
+          echo "KV1=${KERNEL_VERSION%%.*}" >> "$GITHUB_ENV"
+          echo "KV2=$(echo "$KERNEL_VERSION" | tr -d '.')" >> "$GITHUB_ENV"
           echo "KV3=$(echo "$NEW_VERSION" | tr -d '.')" >> "$GITHUB_ENV"
+
+          echo "✅ Android kernel branch: ${KANDROID_VERSION}-${KERNEL_VERSION}"
+          echo "✅ Target kernel version: ${NEW_VERSION}"
 
       - name: Apply Kernel Suffix
         shell: bash
@@ -507,12 +528,21 @@ jobs:
           set -euo pipefail
           cd kernel_workspace
 
+          echo "::group::ReSukiSU Integration"
+
           KSU_META="${{ inputs.KSU_META }}"
           IFS='/' read -r BRANCH_NAME KSU_CUSTOM_TAG MANUAL_HASH <<< "$KSU_META"
 
+          SETUP_BRANCH="${{ inputs.KSU_SETUP_BRANCH }}"
+
+          echo "🛠️ setup.sh branch: ${SETUP_BRANCH}"
+          echo "📦 ReSukiSU install branch: ${BRANCH_NAME}"
+          echo "🏷️ Custom tag: ${KSU_CUSTOM_TAG:-none}"
+          echo "🔖 Manual hash: ${MANUAL_HASH:-latest}"
+
           curl -fL --proto '=https' --tlsv1.2 \
             -o /tmp/ksu_setup.sh \
-            "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh"
+            "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/${SETUP_BRANCH}/kernel/setup.sh"
 
           bash /tmp/ksu_setup.sh "$BRANCH_NAME"
 
@@ -523,15 +553,19 @@ jobs:
           fi
 
           if [[ -n "${MANUAL_HASH}" ]]; then
-            git fetch origin "${BRANCH_NAME}" --depth=50
+            git fetch origin "${BRANCH_NAME}" --depth=100
             git checkout "${MANUAL_HASH}"
           fi
 
           KSU_COMMIT_SHA="$(git rev-parse HEAD)"
           echo "KSU_COMMIT_SHA=${KSU_COMMIT_SHA}" >> "$GITHUB_ENV"
 
-          KSU_VERSION=$(expr $(git rev-list --count "${{ steps.manager.outputs.manager_branch }}" 2>/dev/null || echo 13000) + 30700)
+          KSU_VERSION=$(expr $(git rev-list --count HEAD 2>/dev/null || echo 13000) + 30700)
           echo "KSUVER=${KSU_VERSION}" >> "$GITHUB_ENV"
+
+          echo "✅ ReSukiSU commit: ${KSU_COMMIT_SHA}"
+          echo "✅ ReSukiSU version code: ${KSU_VERSION}"
+          echo "::endgroup::"
 
       - name: Apply Patches ReSukiSU and SUSFS
         shell: bash
@@ -1131,6 +1165,15 @@ jobs:
           | Kernel Version | ${TKERNEL_VERSION} |
           | Branch | common-${KERNEL_BRANCH} |
 
+          ## ReSukiSU
+
+          | Property | Value |
+          |----------|-------|
+          | setup.sh branch | ${{ inputs.KSU_SETUP_BRANCH }} |
+          | KSU_META | ${{ inputs.KSU_META }} |
+          | KSU Version | ${KSUVER} |
+          | KSU Commit | ${KSU_COMMIT_SHA} |
+
           ## Output
 
           | File | Details |
@@ -1172,6 +1215,8 @@ jobs:
           Branch: common-${KERNEL_BRANCH}
           Kernel Version: ${TKERNEL_VERSION:-N/A}
 
+          ReSukiSU setup.sh branch: ${{ inputs.KSU_SETUP_BRANCH }}
+          KSU_META: ${{ inputs.KSU_META }}
           KSU Version: ${KSUVER:-N/A}
           KSU Commit: ${KSU_COMMIT_SHA:-N/A}
 
