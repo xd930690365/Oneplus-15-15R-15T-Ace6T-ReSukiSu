@@ -726,10 +726,7 @@ jobs:
             if grep -qF 'for (; mnt->mnt_id >= DEFAULT_KSU_MNT_ID; mnt = mnt->mnt_parent) { }' ./fs/statfs.c ./fs/proc/fd.c 2>/dev/null; then
               echo "::warning::OP15 mnt_parent guard pattern still present after patch attempt"
             fi
-          }
-
-          # Apply KSU Toolkit patch
-          apply_patch_safe "../Action-Build/patches/ksu_toolkit.patch" "KSU Toolkit" || true
+          }          
 
           if [ "${{ inputs.SUSFS_META }}" != "-1" ]; then
             GKI_V="${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}"
