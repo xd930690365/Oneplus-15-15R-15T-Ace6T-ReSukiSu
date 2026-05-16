@@ -27,7 +27,7 @@ on:
         type: choice
         description: "ReSukiSU setup.sh branch"
         required: true
-        default: dev
+        default: main
         options:
           - main
           - dev
@@ -48,7 +48,7 @@ on:
         type: string
         description: "Branch name / custom version tag / rollback commit hash"
         required: false
-        default: "dev/⚡Ultra⚡/"
+        default: "main/⚡Ultra⚡/"
 
       SUFFIX:
         type: string
